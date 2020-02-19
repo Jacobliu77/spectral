@@ -1,5 +1,5 @@
 import { Cache } from '@stoplight/json-ref-resolver';
-import { ICache } from '@stoplight/json-ref-resolver/types';
+import { ICache, IUriParserResult } from '@stoplight/json-ref-resolver/types';
 import { join } from '@stoplight/path';
 import { Optional } from '@stoplight/types';
 import { parse } from '@stoplight/yaml';
@@ -65,15 +65,17 @@ const createRulesetProcessor = (
         dereferenceInline: false,
         uriCache,
         async parseResolveResult(opts) {
-          try {
-            opts.result = parse(opts.result);
-          } catch {
-            // happens
-          }
-          return opts;
+          return new Promise<IUriParserResult>(resolve => {
+            try {
+              resolve({ result: parse(opts.result) });
+            } catch (e) {
+              resolve({ error: e });
+            }
+          });
         },
       },
     );
+
     const ruleset = assertValidRuleset(JSON.parse(JSON.stringify(result)));
     const rules = {};
     const functions = {};

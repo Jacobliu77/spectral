@@ -1,10 +1,10 @@
 /**
- * This script generates a list of assets that are needed to load spectral:oas ruleset.
- * It contains all OAS custom functions and *resolved* rulesets.
- * The assets are stores in a single filed call assets.json in the following format:
+ * This script generates a list of assets that are needed to load spectral:oas and spectral:asyncapi rulesets.
+ * It contains all custom functions and *resolved* rulesets.
+ * The assets are stored in a single file named `assets.json` in the following format:
  * `<require-call-path>: <content>`
  * where the `require-call-path` is the path you'd normally pass to require(), i.e. `@stoplight/spectral/rulesets/oas/index.js` and `content` is the text data.
- * Assets can be loaded using Spectral#registerStaticAssets statc method, i.e. `Spectral.registerStaticAssets(require('@stoplight/spectral/rulesets/assets/assets.json'))`;
+ * Assets can be loaded using Spectral#registerStaticAssets static method, i.e. `Spectral.registerStaticAssets(require('@stoplight/spectral/rulesets/assets/assets.json'))`;
  * If you execute the code above, ruleset will be loaded fully offline, without a need to make any request.
  */
 
@@ -30,14 +30,16 @@ const assetsPath = path.join(baseDir, `assets.json`);
 const generatedAssets = {};
 
 (async () => {
-  await processDirectory(generatedAssets, path.join(__dirname, '../rulesets/oas'));
-  await writeFileAsync(assetsPath, JSON.stringify(generatedAssets, null, 2));
+  for (const kind of ['oas', 'asyncapi']) {
+    await processDirectory(generatedAssets, path.join(__dirname, `../rulesets/${kind}`));
+    await writeFileAsync(assetsPath, JSON.stringify(generatedAssets, null, 2));
+  }
 })();
 
 async function processDirectory(assets: Record<string, string>, dir: string) {
   await Promise.all(
     (await readdirAsync(dir)).map(async (name: string) => {
-      if (name === 'schemas') return;
+      if (['schemas', '__tests__'].includes(name)) return;
       const target = path.join(dir, name);
       const stats = await statAsync(target);
       if (stats.isDirectory()) {
@@ -53,7 +55,11 @@ async function processDirectory(assets: Record<string, string>, dir: string) {
                 baseUri: target,
                 parseResolveResult(opts) {
                   return new Promise<IUriParserResult>(resolve => {
-                    resolve({ result: parse(opts.result) });
+                    try {
+                      resolve({ result: parse(opts.result) });
+                    } catch (e) {
+                      resolve({ error: e });
+                    }
                   });
                 },
               })
